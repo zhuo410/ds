@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'PingFang SC', system-ui, sans-serif;
+    background-color: #F2F2F7;
+    color: #1C1C1E;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Smooth spring-like transitions */
+  .ios-transition {
+    transition: all 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+
+  /* Scale bounce for touch feedback */
+  .ios-touch:active {
+    transform: scale(0.96);
+    transition: transform 0.1s cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+
+  /* iOS-style scrollbar */
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  /* List item press effect */
+  .ios-list-item {
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+  }
+
+  .ios-list-item:active {
+    background-color: rgba(60, 60, 67, 0.05);
+  }
+
+  /* Safe area padding for notched devices */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+@layer components {
+  .ios-blur {
+    background-color: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .ios-card {
+    background: #FFFFFF;
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  .ios-section-header {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1C1C1E;
+    padding: 10px 16px 6px;
+  }
+
+  .ios-large-title {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: 0.37px;
+    color: #1C1C1E;
+  }
+}

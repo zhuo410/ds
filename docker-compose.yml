@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=development
+      - JWT_SECRET=dev-secret-change-in-production
+      - TCB_ENV_ID=${TCB_ENV_ID:-}
+      - TCB_SECRET_ID=${TCB_SECRET_ID:-}
+      - TCB_SECRET_KEY=${TCB_SECRET_KEY:-}
+    # Mount frontend source for live rebuild during development
+    volumes:
+      - ./frontend/src:/app/frontend/src
+      - ./frontend/package.json:/app/frontend/package.json
+    # Rebuild frontend and start server (for production use Dockerfile directly)
+    command: >
+      sh -c "cd /app/frontend && npm install && npm run build && cd /app && node app.js"
