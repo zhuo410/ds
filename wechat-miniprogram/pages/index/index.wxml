@@ -1,10 +1,21 @@
-<!--
-  页面：商城首页
-  使用 web-view 加载云托管的 H5 商城应用
-  通过 bindmessage 接收 H5 端发送的消息（登录、支付等）
--->
 <view class="container">
+  <!-- 加载状态 -->
+  <view class="loading-mask" wx:if="{{isLoading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 错误提示 -->
+  <view class="error-mask" wx:if="{{errorMsg}}">
+    <text class="error-icon">⚠️</text>
+    <text class="error-text">{{errorMsg}}</text>
+    <button class="retry-btn" bindtap="retryLoad">重新加载</button>
+  </view>
+
+  <!-- web-view（hidden 时仍然会加载，但不显示） -->
   <web-view
+    wx:if="{{!errorMsg}}"
+    id="webview"
     src="{{webviewSrc}}"
     bindload="onWebviewLoad"
     binderror="onWebviewError"

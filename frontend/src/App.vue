@@ -17,10 +17,11 @@ watch(() => route.meta.title, (title) => {
 
 // App initialization
 onMounted(async () => {
-  // 1. 小程序的 web-view 环境：自动从 URL 读取 code 做微信登录
   if (isInMiniProgram()) {
-    const params = new URLSearchParams(window.location.search)
-    const code = params.get('code')
+    // 小程序 web-view 环境：从 route.query 读取 code 做微信登录
+    // 注意：因为 hash 路由，#/?code=xxx 的查询参数在 route.query 中
+    const code = route.query.code
+    const from = route.query.from
 
     if (code && !userStore.isLoggedIn) {
       try {
@@ -31,12 +32,24 @@ onMounted(async () => {
       }
     }
 
-    // 2. 设置页面分享（小程序分享）
+    // 设置分享
     setupShare(
       route.meta.title || '精选好物，品质生活',
       window.location.hash,
       ''
     )
+  }
+})
+
+// 监听路由变化，如果 URL 中有 code 参数则自动登录
+watch(() => route.query.code, async (newCode) => {
+  if (newCode && isInMiniProgram() && !userStore.isLoggedIn) {
+    try {
+      await userStore.loginWithWechat(newCode)
+      console.log('[App] WeChat login success via route watch')
+    } catch (e) {
+      console.warn('[App] WeChat login failed:', e)
+    }
   }
 })
 </script>

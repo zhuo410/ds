@@ -2,17 +2,23 @@
  * WeChat Mini-Program Integration Utilities
  *
  * H5 页面在小程序 web-view 中运行时，通过 postMessage 与小程序通信。
- * 小程序将登录 code 等参数通过 URL 参数传递进来。
+ * 小程序将登录 code 通过 URL 参数传递进来（/#/?code=xxx）。
  */
 
-// 从 URL 中获取小程序传递的参数
-function getMiniProgramParams() {
-  const params = new URLSearchParams(window.location.search)
-  return {
-    code: params.get('code') || '',
-    from: params.get('from') || '',
-    token: params.get('token') || ''
+// 从 URL 中获取小程序传递的参数（兼容 hash 路由）
+function getParamFromUrl(key) {
+  // hash 路由下，?code=xxx 跟在 #/ 后面
+  // window.location.href = https://domain/#/?code=xxx
+  const hash = window.location.hash  // "#/?code=xxx"
+  const searchIndex = hash.indexOf('?')
+  if (searchIndex !== -1) {
+    const search = hash.substring(searchIndex)
+    const params = new URLSearchParams(search)
+    if (params.has(key)) return params.get(key)
   }
+  // 兜底：从完整 URL 中匹配
+  const match = window.location.href.match(new RegExp('[?&]' + key + '=([^&]+)'))
+  return match ? decodeURIComponent(match[1]) : ''
 }
 
 // 检查是否运行在小程序 web-view 中
@@ -36,7 +42,7 @@ function postMessage(data) {
   }
 }
 
-// 获取登录 code（优先从 URL 参数取，再尝试请求小程序）
+// 获取登录 code
 export function getWechatCode() {
   return new Promise((resolve) => {
     if (!isInMiniProgram()) {
@@ -45,16 +51,15 @@ export function getWechatCode() {
     }
 
     // 优先从 URL 参数获取
-    const params = getMiniProgramParams()
-    if (params.code) {
-      resolve(params.code)
+    const code = getParamFromUrl('code')
+    if (code) {
+      resolve(code)
       return
     }
 
     // 降级：请求小程序提供 code
     postMessage({ type: 'wechat_code' })
 
-    // 监听小程序回复
     const handler = (event) => {
       const msg = event.data
       if (msg?.type === 'wechat_code' && msg?.data?.code) {
@@ -64,7 +69,6 @@ export function getWechatCode() {
     }
     window.addEventListener('message', handler)
 
-    // 10s 超时
     setTimeout(() => {
       window.removeEventListener('message', handler)
       resolve('timeout_code_' + Date.now())
@@ -72,23 +76,17 @@ export function getWechatCode() {
   })
 }
 
-// 请求微信支付（通过小程序）
+// 请求微信支付
 export function requestWechatPayment(paymentParams) {
   return new Promise((resolve, reject) => {
     if (!isInMiniProgram()) {
-      // 开发环境：模拟支付
       console.log('[WeChat] Dev mode: simulating payment')
       setTimeout(() => resolve({ success: true }), 1000)
       return
     }
 
-    // 向小程序发起支付请求
-    postMessage({
-      type: 'payment',
-      data: paymentParams
-    })
+    postMessage({ type: 'payment', data: paymentParams })
 
-    // 监听支付结果
     const handler = (event) => {
       const msg = event.data
       if (msg?.type === 'payment_result') {
@@ -102,7 +100,6 @@ export function requestWechatPayment(paymentParams) {
     }
     window.addEventListener('message', handler)
 
-    // 30s 超时
     setTimeout(() => {
       window.removeEventListener('message', handler)
       reject(new Error('支付超时'))
@@ -132,10 +129,7 @@ export function requestSubscribeMessage(templateIds) {
       return
     }
 
-    postMessage({
-      type: 'subscribe',
-      data: { templateIds }
-    })
+    postMessage({ type: 'subscribe', data: { templateIds } })
 
     const handler = (event) => {
       const msg = event.data

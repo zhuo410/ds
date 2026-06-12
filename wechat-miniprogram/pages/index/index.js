@@ -8,8 +8,6 @@ Page({
   },
 
   onLoad() {
-    // 1. 获取微信登录 code
-    // 2. 拿到 code 后拼接 URL 传给 web-view
     this.getLoginCodeAndLoadUrl()
   },
 
@@ -30,6 +28,8 @@ Page({
       return
     }
 
+    this.setData({ isLoading: true, errorMsg: '' })
+
     // 先获取微信登录 code
     wx.login({
       success: (res) => {
@@ -47,39 +47,57 @@ Page({
   },
 
   // 拼接 web-view URL
+  // 注意：Vue 使用 hash 路由 (#/)，所以 URL 必须以 /#/ 结尾
   setWebviewUrl(baseUrl, code) {
+    // 去除 baseUrl 末尾的斜杠
+    const cleanUrl = baseUrl.replace(/\/+$/, '')
     const token = wx.getStorageSync('token') || ''
-    const params = new URLSearchParams({
-      from: 'miniprogram'
-    })
 
-    if (code) params.set('code', code)
-    if (token) params.set('token', token)
+    // 构建 URL：使用 hash 路由格式
+    // 参数通过 URL 的 search 部分传递，Vue App.vue 会从 URL search 读取
+    let src = cleanUrl + '/#/'
 
-    const src = `${baseUrl}?${params.toString()}`
+    const params = []
+    if (code) params.push('code=' + encodeURIComponent(code))
+    if (token) params.push('token=' + encodeURIComponent(token))
+    params.push('from=miniprogram')
+
+    src += '?' + params.join('&')
+
+    console.log('[MP] Loading URL:', src)
 
     this.setData({
       webviewSrc: src,
-      isLoading: false
+      isLoading: false,
+      errorMsg: ''
     })
   },
 
   // web-view 加载成功
   onWebviewLoad() {
-    console.log('[MP] Webview loaded')
+    console.log('[MP] Webview loaded successfully')
+    this.setData({ isLoading: false })
   },
 
   // web-view 加载失败
   onWebviewError(e) {
-    console.error('[MP] Webview error:', e.detail)
+    console.error('[MP] Webview error:', JSON.stringify(e.detail))
     this.setData({
-      errorMsg: '页面加载失败，请检查网络后重试'
+      isLoading: false,
+      errorMsg: '页面加载失败\n请检查云托管是否已部署成功'
     })
+  },
+
+  // 重新加载
+  retryLoad() {
+    this.setData({ errorMsg: '', isLoading: true })
+    this.getLoginCodeAndLoadUrl()
   },
 
   // 接收 H5 端通过 wx.miniProgram.postMessage 发送的消息
   onWebviewMessage(e) {
-    const msg = e.detail?.data?.[0]
+    const msgs = e.detail?.data
+    const msg = Array.isArray(msgs) ? msgs[0] : msgs
     if (!msg?.type) return
 
     console.log('[MP] Received:', msg.type)
@@ -155,7 +173,7 @@ Page({
 
     app.globalData.shareData = {
       title: data.title || '精选好物，品质生活',
-      path: `/pages/index/index`,
+      path: '/pages/index/index',
       imageUrl: data.imageUrl || ''
     }
   },
@@ -175,13 +193,13 @@ Page({
     })
   },
 
-  // 向 web-view 发消息（通过 evalJS）
+  // 向 web-view 发消息
   sendToWebview(msg) {
     try {
       const ctx = wx.createWebViewContext('webview')
       ctx.postMessage(msg)
     } catch (e) {
-      console.warn('[MP] sendToWebview failed:', e)
+      console.warn('[MP] sendToWebview failed:', e.message)
     }
   },
 

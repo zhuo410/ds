@@ -8,6 +8,6 @@ App({
   globalData: {
     token: '',
     // 部署后替换为云托管真实地址
-    cloudHostingUrl: 'https://YOUR-SERVICE-URL'
+    cloudHostingUrl: 'https://ds-269783-9-1300592693.sh.run.tcloudbase.com'
   }
 })
