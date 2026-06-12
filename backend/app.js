@@ -54,6 +54,16 @@ app.use('/api/admin', adminRoutes)
 // Serve static frontend in production
 const staticDir = path.join(__dirname, 'frontend', 'dist')
 if (fs.existsSync(staticDir)) {
+  // Serve WeChat MP verification files (MP_verify_xxxxx.txt)
+  app.get(/^\/MP_verify_\w+\.txt$/, (req, res) => {
+    const filename = req.path.split('/').pop()
+    const filePath = path.join(__dirname, filename)
+    if (fs.existsSync(filePath)) {
+      return res.type('text/plain').send(fs.readFileSync(filePath, 'utf-8'))
+    }
+    res.status(404).send('Verification file not found. Place ' + filename + ' in backend/ directory')
+  })
+
   console.log(`[Server] Serving static frontend from: ${staticDir}`)
   app.use(express.static(staticDir))
 
