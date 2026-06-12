@@ -1,120 +1,156 @@
 /**
  * WeChat Mini-Program Integration Utilities
  *
- * This file provides helpers for WeChat JS-SDK integration.
- * These functions are called from within the mini-program web-view context
- * (i.e., when wx.miniProgram is available).
+ * H5 页面在小程序 web-view 中运行时，通过 postMessage 与小程序通信。
+ * 小程序将登录 code 等参数通过 URL 参数传递进来。
  */
 
-// Check if running inside WeChat mini-program
-export function isInMiniProgram() {
-  return typeof window !== 'undefined' &&
-    (window.__wxjs_environment === 'miniprogram' ||
-     /miniProgram/i.test(navigator.userAgent))
-}
-
-// Navigate to mini-program page
-export function navigateToMiniProgram(path) {
-  if (window.wx?.miniProgram) {
-    window.wx.miniProgram.navigateTo({ url: path })
+// 从 URL 中获取小程序传递的参数
+function getMiniProgramParams() {
+  const params = new URLSearchParams(window.location.search)
+  return {
+    code: params.get('code') || '',
+    from: params.get('from') || '',
+    token: params.get('token') || ''
   }
 }
 
-// Get WeChat login code
+// 检查是否运行在小程序 web-view 中
+export function isInMiniProgram() {
+  return (
+    typeof window !== 'undefined' &&
+    (window.__wxjs_environment === 'miniprogram' ||
+     navigator.userAgent.includes('miniProgram') ||
+     navigator.userAgent.includes('MicroMessenger'))
+  )
+}
+
+// 向小程序发送消息
+function postMessage(data) {
+  try {
+    if (window.wx?.miniProgram) {
+      window.wx.miniProgram.postMessage({ data })
+    }
+  } catch (e) {
+    console.warn('[WeChat] postMessage failed:', e)
+  }
+}
+
+// 获取登录 code（优先从 URL 参数取，再尝试请求小程序）
 export function getWechatCode() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (!isInMiniProgram()) {
-      // Dev fallback: return a mock code
       resolve('dev_code_' + Date.now())
       return
     }
-    window.wx?.miniProgram?.navigateTo({
-      url: '/pages/login/login',
-      success: () => {
-        // Listen for code from mini-program
-        window.addEventListener('message', (event) => {
-          if (event.data?.type === 'wechat_code') {
-            resolve(event.data.code)
-          }
-        })
-      },
-      fail: reject
-    })
+
+    // 优先从 URL 参数获取
+    const params = getMiniProgramParams()
+    if (params.code) {
+      resolve(params.code)
+      return
+    }
+
+    // 降级：请求小程序提供 code
+    postMessage({ type: 'wechat_code' })
+
+    // 监听小程序回复
+    const handler = (event) => {
+      const msg = event.data
+      if (msg?.type === 'wechat_code' && msg?.data?.code) {
+        window.removeEventListener('message', handler)
+        resolve(msg.data.code)
+      }
+    }
+    window.addEventListener('message', handler)
+
+    // 10s 超时
+    setTimeout(() => {
+      window.removeEventListener('message', handler)
+      resolve('timeout_code_' + Date.now())
+    }, 10000)
   })
 }
 
-// Request WeChat payment
+// 请求微信支付（通过小程序）
 export function requestWechatPayment(paymentParams) {
   return new Promise((resolve, reject) => {
-    if (!window.wx) {
-      // Dev fallback: simulate payment
-      setTimeout(resolve, 1000)
+    if (!isInMiniProgram()) {
+      // 开发环境：模拟支付
+      console.log('[WeChat] Dev mode: simulating payment')
+      setTimeout(() => resolve({ success: true }), 1000)
       return
     }
-    window.wx.requestPayment({
-      timeStamp: paymentParams.timeStamp,
-      nonceStr: paymentParams.nonceStr,
-      package: paymentParams.package,
-      signType: 'MD5',
-      paySign: paymentParams.paySign,
-      success: resolve,
-      fail: reject
+
+    // 向小程序发起支付请求
+    postMessage({
+      type: 'payment',
+      data: paymentParams
     })
+
+    // 监听支付结果
+    const handler = (event) => {
+      const msg = event.data
+      if (msg?.type === 'payment_result') {
+        window.removeEventListener('message', handler)
+        if (msg.data?.success) {
+          resolve(msg.data)
+        } else {
+          reject(new Error(msg.data?.error || '支付失败'))
+        }
+      }
+    }
+    window.addEventListener('message', handler)
+
+    // 30s 超时
+    setTimeout(() => {
+      window.removeEventListener('message', handler)
+      reject(new Error('支付超时'))
+    }, 30000)
   })
 }
 
-// Setup WeChat share
+// 设置分享
 export function setupShare(title, path, imageUrl) {
-  if (!window.wx) return
+  if (!isInMiniProgram()) return
 
-  // Mini-program web-view share
-  window.wx.miniProgram?.postMessage({
+  postMessage({
+    type: 'share',
     data: {
-      type: 'share',
-      title,
+      title: title || '精选好物，品质生活',
       path: path || window.location.hash,
-      imageUrl
+      imageUrl: imageUrl || ''
     }
-  })
-
-  // H5 share via JS-SDK
-  window.wx.updateTimelineShareData?.({
-    title,
-    link: window.location.href,
-    imgUrl: imageUrl
-  })
-  window.wx.updateAppMessageShareData?.({
-    title,
-    desc: '精选好物，品质生活',
-    link: window.location.href,
-    imgUrl: imageUrl
   })
 }
 
-// Subscribe message
+// 订阅消息
 export function requestSubscribeMessage(templateIds) {
-  return new Promise((resolve, reject) => {
-    if (!window.wx) {
-      resolve()
+  return new Promise((resolve) => {
+    if (!isInMiniProgram()) {
+      resolve({})
       return
     }
-    window.wx.requestSubscribeMessage?.({
-      tmplIds: templateIds,
-      success: resolve,
-      fail: reject
+
+    postMessage({
+      type: 'subscribe',
+      data: { templateIds }
     })
+
+    const handler = (event) => {
+      const msg = event.data
+      if (msg?.type === 'subscribe_result') {
+        window.removeEventListener('message', handler)
+        resolve(msg.data)
+      }
+    }
+    window.addEventListener('message', handler)
   })
 }
 
-// Open customer service chat
+// 打开客服
 export function openCustomerService() {
-  if (window.wx?.openCustomerServiceChat) {
-    window.wx.openCustomerServiceChat({
-      extInfo: { url: '' },
-      success: () => {}
-    })
-  } else {
-    // Fallback: open a contact page or phone
-    window.location.href = 'tel:400-000-0000'
+  if (isInMiniProgram()) {
+    postMessage({ type: 'customer_service' })
   }
 }

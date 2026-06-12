@@ -1,0 +1,33 @@
+{
+  "compileType": "miniprogram",
+  "setting": {
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minified": true,
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "preloadBackgroundData": false,
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "useMultiFrameRuntime": true,
+    "useApiHook": true,
+    "useApiHostProcess": true
+  },
+  "appid": "YOUR_APP_ID",
+  "projectname": "零售商城",
+  "libVersion": "3.6.0",
+  "condition": {
+    "miniprogram": {
+      "current": 0,
+      "list": [
+        {
+          "id": 0,
+          "name": "商城首页",
+          "pathName": "pages/index/index"
+        }
+      ]
+    }
+  }
+}

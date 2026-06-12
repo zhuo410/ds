@@ -1,0 +1,13 @@
+<!--
+  页面：商城首页
+  使用 web-view 加载云托管的 H5 商城应用
+  通过 bindmessage 接收 H5 端发送的消息（登录、支付等）
+-->
+<view class="container">
+  <web-view
+    src="{{webviewSrc}}"
+    bindload="onWebviewLoad"
+    binderror="onWebviewError"
+    bindmessage="onWebviewMessage"
+  />
+</view>
