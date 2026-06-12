@@ -26,6 +26,6 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get({hostname:'localhost',port:process.env.PORT||80,path:'/api/health'},r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
 
-EXPOSE ${PORT:-80}
+EXPOSE 80
 
 CMD ["node", "app.js"]
